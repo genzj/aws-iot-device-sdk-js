@@ -28,7 +28,7 @@ const THING_NAME_PREFIX = 'test-air-conditioner-'
 const TEMPERATURE_CONTROL_THING = THING_NAME_PREFIX + 'TemperatureControl';
 const TEMPERATURE_STATUS_THING = THING_NAME_PREFIX + 'TemperatureStatus';
 const AWS_IOT_ENDPOINT = "aaaaaaa.iot.us-east-1.amazonaws.com";
-const CERT_DIR = "bbbbbb-cert"
+const CERT_DIR = "cert"
 
 function processTest(args) {
    //
@@ -435,7 +435,7 @@ function processTest(args) {
 
    thingShadows
       .on('error', function(error) {
-         log.log('error', error);
+         log.log('error: ' + error);
       });
 
    thingShadows
@@ -472,6 +472,8 @@ function processTest(args) {
 
    thingShadows
       .on('delta', function(thingName, stateObject) {
+         log.log('delta: ' + thingName);
+         log.log(JSON.stringify(stateObject));
          if (networkEnabled === true) {
             if (thingName === TEMPERATURE_CONTROL_THING) {
                if (!isUndefined(stateObject.state.enabled) &&

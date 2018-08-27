@@ -27,3 +27,6 @@ debug
 # browser bundles    #
 ######################
 *bundle.js
+
+**/cert/*.crt
+**/cert/*.key
