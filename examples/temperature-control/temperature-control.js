@@ -24,11 +24,9 @@ const thingShadow = require('../..').thingShadow;
 const isUndefined = require('../../common/lib/is-undefined');
 const cmdLineProcess = require('../lib/cmdline');
 
-const THING_NAME_PREFIX = 'test-air-conditioner-'
-const TEMPERATURE_CONTROL_THING = THING_NAME_PREFIX + 'TemperatureControl';
-const TEMPERATURE_STATUS_THING = THING_NAME_PREFIX + 'TemperatureStatus';
-const AWS_IOT_ENDPOINT = "aaaaaaa.iot.us-east-1.amazonaws.com";
-const CERT_DIR = "cert"
+const THING_NAME_PREFIX = 'test-air-conditioner'
+const AWS_IOT_ENDPOINT = "antrj80hsqpvv-ats.iot.us-east-1.amazonaws.com";
+const CERT_DIR = "certs"
 
 function processTest(args) {
    //
@@ -188,10 +186,7 @@ function processTest(args) {
       host: AWS_IOT_ENDPOINT
    });
 
-   thingShadows.register(TEMPERATURE_CONTROL_THING, {
-      persistentSubscribe: true
-   });
-   thingShadows.register(TEMPERATURE_STATUS_THING, {
+   thingShadows.register(THING_NAME_PREFIX, {
       persistentSubscribe: true
    });
 
@@ -252,7 +247,8 @@ function processTest(args) {
                deviceControlState.enabled = (deviceControlState.enabled === true ? false : true);
 
                if (networkEnabled === true) {
-                  opClientToken = thingShadows.update(TEMPERATURE_CONTROL_THING, {
+				  log.log('update 250: ' + JSON.stringify(deviceControlState));
+                  opClientToken = thingShadows.update(THING_NAME_PREFIX, {
                      state: {
                         desired: deviceControlState
                      }
@@ -267,7 +263,7 @@ function processTest(args) {
                   }
                }
                if (renderScreen === true) {
-                  log.log('temperature control ' + (deviceControlState.enabled ? 'enabled' : 'disabled'));
+                  log.log('temperature control A ' + (deviceControlState.enabled ? 'enabled' : 'disabled'));
                   lcd4.setDisplay(enabledStatus);
                   screen.render();
                }
@@ -290,7 +286,8 @@ function processTest(args) {
                   // get a 'rejected' status if another entity has updated this thing shadow
                   // in the meantime and we will have to re-sync.
                   //
-                  if (thingShadows.update(TEMPERATURE_CONTROL_THING, {
+				  log.log('update 289: ' + JSON.stringify(deviceControlState));
+                  if (thingShadows.update(THING_NAME_PREFIX, {
                         state: {
                            desired: deviceControlState
                         }
@@ -323,7 +320,8 @@ function processTest(args) {
 
          deviceControlState.setPoint++;
          if (networkEnabled === true) {
-            opClientToken = thingShadows.update(TEMPERATURE_CONTROL_THING, {
+			log.log('update 323: ' + JSON.stringify(deviceControlState));
+            opClientToken = thingShadows.update(THING_NAME_PREFIX, {
                state: {
                   desired: deviceControlState
                }
@@ -350,7 +348,8 @@ function processTest(args) {
 
          deviceControlState.setPoint--;
          if (networkEnabled === true) {
-            opClientToken = thingShadows.update(TEMPERATURE_CONTROL_THING, {
+			log.log('update 351: ' + JSON.stringify(deviceControlState));
+            opClientToken = thingShadows.update(THING_NAME_PREFIX, {
                state: {
                   desired: deviceControlState
                }
@@ -388,7 +387,7 @@ function processTest(args) {
          //
          setTimeout(function() {
 
-           opClientToken = thingShadows.get(TEMPERATURE_CONTROL_THING);
+           opClientToken = thingShadows.get(THING_NAME_PREFIX);
             if (opClientToken === null) {
                log.log('operation in progress');
             }
@@ -406,10 +405,7 @@ function processTest(args) {
          //
          // Upon reconnection, re-register our thing shadows.
          //
-         thingShadows.register(TEMPERATURE_CONTROL_THING, {
-            persistentSubscribe: true
-         });
-         thingShadows.register(TEMPERATURE_STATUS_THING, {
+         thingShadows.register(THING_NAME_PREFIX, {
             persistentSubscribe: true
          });
          //
@@ -417,7 +413,8 @@ function processTest(args) {
          // with our current state
          //
          setTimeout(function() {
-            opClientToken = thingShadows.update(TEMPERATURE_CONTROL_THING, {
+			log.log('update 416: ' + JSON.stringify(deviceControlState));
+            opClientToken = thingShadows.update(THING_NAME_PREFIX, {
                state: {
                   desired: deviceControlState
                }
@@ -430,17 +427,17 @@ function processTest(args) {
 
    thingShadows
       .on('offline', function() {
-         log.log('offline');
+         log.log('offline: ' + JSON.stringify(arguments));
       });
 
    thingShadows
       .on('error', function(error) {
-         log.log('error: ' + error);
+         log.log('error: ' + JSON.stringify(arguments));
       });
 
    thingShadows
       .on('message', function(topic, payload) {
-         log.log('message', topic, payload.toString());
+         log.log('message of ' + topic + ': ' + payload.toString());
       });
 
    thingShadows
@@ -461,41 +458,49 @@ function processTest(args) {
             }
          }
          if (statusType === 'accepted') {
-            if (thingName === TEMPERATURE_CONTROL_THING) {
-               deviceControlState = stateObject.state.desired;
-               lcd1.setDisplay(deviceControlState.setPoint + 'F');
-               lcd4.setDisplay(deviceControlState.enabled === true ? ' ON' : 'OFF');
-               screen.render();
+            if (thingName === THING_NAME_PREFIX) {
+			   log.log('accepted: ' + JSON.stringify(stateObject.state));
+			   const {enabled, setPoint} = stateObject.state.desired;
+			   const acceptedControlState = {enabled, setPoint};
+			   if (!isUndefined(enabled) && !isUndefined(setPoint) && acceptedControlState !== deviceControlState) {
+				   log.log('temperature control B ' + (stateObject.state.enabled ? 'enabled' : 'disabled'));
+				   log.log('local B ' + JSON.stringify(deviceControlState));
+				   deviceControlState = {enabled, setPoint};
+				   lcd1.setDisplay(deviceControlState.setPoint + 'F');
+				   lcd4.setDisplay(deviceControlState.enabled === true ? ' ON' : 'OFF');
+				   screen.render();
+			   }
             }
          }
       });
 
    thingShadows
       .on('delta', function(thingName, stateObject) {
-         log.log('delta: ' + thingName);
-         log.log(JSON.stringify(stateObject));
-         if (networkEnabled === true) {
-            if (thingName === TEMPERATURE_CONTROL_THING) {
-               if (!isUndefined(stateObject.state.enabled) &&
-                  (stateObject.state.enabled !== deviceControlState.enabled)) {
-                  log.log('temperature control ' + (stateObject.state.enabled ? 'enabled' : 'disabled'));
-               }
-               deviceControlState = stateObject.state;
-               lcd1.setDisplay(deviceControlState.setPoint + 'F');
-               lcd4.setDisplay(deviceControlState.enabled === true ? ' ON' : 'OFF');
-            } else if (thingName === TEMPERATURE_STATUS_THING) {
-               if (!isUndefined(stateObject.state.intTemp)) {
-                  deviceMonitorState.intTemp = stateObject.state.intTemp;
-               }
-               if (!isUndefined(stateObject.state.extTemp)) {
-                  deviceMonitorState.extTemp = stateObject.state.extTemp;
-               }
-               if (!isUndefined(stateObject.state.curState)) {
-                  deviceMonitorState.curState = stateObject.state.curState;
-               }
-            }
-            screen.render();
-         }
+        if (networkEnabled === true) {
+			const {enabled, setPoint} = stateObject.state;
+			log.log('delta: ' + JSON.stringify(stateObject));
+			log.log('local C ' + JSON.stringify(deviceControlState));
+			if (!isUndefined(enabled) && (deviceControlState.enabled !== enabled)) {
+				log.log('temperature control C ' + (stateObject.state.enabled ? 'enabled' : 'disabled'));
+				deviceControlState.enabled = enabled;
+				lcd4.setDisplay(deviceControlState.enabled === true ? ' ON' : 'OFF');
+			}
+			if (!isUndefined(setPoint) && (deviceControlState.setPoint !== setPoint)) {
+				log.log('temperature setpoint C ' + setPoint);
+				deviceControlState.setPoint = setPoint;
+				lcd1.setDisplay(deviceControlState.setPoint + 'F');
+			}
+			if (!isUndefined(stateObject.state.intTemp)) {
+				deviceMonitorState.intTemp = stateObject.state.intTemp;
+			}
+			if (!isUndefined(stateObject.state.extTemp)) {
+				deviceMonitorState.extTemp = stateObject.state.extTemp;
+			}
+			if (!isUndefined(stateObject.state.curState)) {
+				deviceMonitorState.curState = stateObject.state.curState;
+			}
+			screen.render();
+        }
       });
 
    //
@@ -538,7 +543,8 @@ function processTest(args) {
          //
          if ((networkEnabled === true) &&
             (deviceMonitorState.intTemp !== currentInteriorTemp)) {
-            opClientToken = thingShadows.update(TEMPERATURE_STATUS_THING, {
+			log.log('update 543: ' + JSON.stringify(deviceMonitorState));
+            opClientToken = thingShadows.update(THING_NAME_PREFIX, {
                state: {
                   desired: deviceMonitorState
                }
